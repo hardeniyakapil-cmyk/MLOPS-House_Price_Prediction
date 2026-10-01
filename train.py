@@ -10,24 +10,28 @@ import numpy as np
 
 s3 = boto3.client("s3")
 
-BUCKET = "mlopsbuckethouseprice"
+# Aapka actual S3 bucket name
+BUCKET = "ml-ops77"
 KEY = "Mlops_house_predication_raw_data.csv"
 
 
 def fetch_data():
-
-    response = s3.get_object(
-        Bucket=BUCKET,
-        Key=KEY
-    )
-
-    df = pd.read_csv(
-        StringIO(
-            response["Body"].read().decode("utf-8")
+    try:
+        response = s3.get_object(
+            Bucket=BUCKET,
+            Key=KEY
         )
-    )
-
-    return df
+        df = pd.read_csv(
+            StringIO(
+                response["Body"].read().decode("utf-8")
+            )
+        )
+        return df
+    except Exception as e:
+        print(f"Error fetching data from S3: {e}")
+        # Fallback agar file local mein ho toh local se utha le
+        print("Trying to load from local directory...")
+        return pd.read_csv("D:\\Mlops_house_predication_raw_data.csv")
 
 
 df = fetch_data()
@@ -39,11 +43,12 @@ print(df.columns.tolist())
 print("\nFirst 5 rows:")
 print(df.head())
 
-# features/ Tragets
-X=df[['sqft','bedrooms','bathrooms','age_years','garage','location_score']]
-y=df['price']
+# Features / Targets (Ensure these column names exist in your CSV)
+X = df[['sqft', 'bedrooms', 'bathrooms', 'age_years', 'garage', 'location_score']]
+y = df['price']
 
-X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2,random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
 mlflow.set_experiment("mlops-house-prediction")
 
@@ -51,22 +56,22 @@ with mlflow.start_run():
     n_estimators = 150
     max_depth = 8
 
-    model = RandomForestRegressor(n_estimators=n_estimators,max_depth=max_depth,random_state=42)
+    model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
 
-    model.fit(X_train,y_train)
+    model.fit(X_train, y_train)
 
-    preds=model.predict(X_test)
-    mae=mean_absolute_error(y_test,preds)
-    rmse=np.sqrt(mean_squared_error(y_test,preds))
-    r2=r2_score(y_test,preds)
+    preds = model.predict(X_test)
+    mae = mean_absolute_error(y_test, preds)
+    rmse = np.sqrt(mean_squared_error(y_test, preds))
+    r2 = r2_score(y_test, preds)
 
-    mlflow.log_param("n_estimators",n_estimators)
-    mlflow.log_param("max_depth",max_depth)
-    mlflow.log_param("data_source",f"s3://{BUCKET}/{KEY}")
-    mlflow.log_metric("mae",mae)
-    mlflow.log_metric("rmse",rmse)
-    mlflow.log_metric("r2_score",r2)
+    mlflow.log_param("n_estimators", n_estimators)
+    mlflow.log_param("max_depth", max_depth)
+    mlflow.log_param("data_source", f"s3://{BUCKET}/{KEY}")
+    mlflow.log_metric("mae", mae)
+    mlflow.log_metric("rmse", rmse)
+    mlflow.log_metric("r2_score", r2)
 
-    mlflow.sklearn.log_model(model,"model",skops_trusted_types=["sklearn.tree._tree.Tree"])
+    mlflow.sklearn.log_model(model, "model", skops_trusted_types=["sklearn.tree._tree.Tree"])
 
-    print(f"\n MAE: {mae:.4f}| RMSE: {rmse:.4f} | R2 Score: {r2:.4f}")
+    print(f"\nMAE: {mae:.4f} | RMSE: {rmse:.4f} | R2 Score: {r2:.4f}")

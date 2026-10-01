@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE: iamsoumyamishra7/mlops-app
+  DOCKER_IMAGE: kapilhardeniya01/mlops-app
 
 jobs:
   build:
